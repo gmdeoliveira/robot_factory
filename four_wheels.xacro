@@ -1,0 +1,79 @@
+<?xml version="1.0"?>
+<robot name="four_wheeled_robot" xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <!-- Parâmetros globais -->
+  <xacro:property name="pi" value="3.14"/>
+  <xacro:property name="chassis_length" value="1.0"/>
+  <xacro:property name="chassis_width" value="0.6"/>
+  <xacro:property name="chassis_height" value="0.2"/>
+  <xacro:property name="wheel_radius" value="0.15"/>
+  <xacro:property name="wheel_width" value="0.05"/>
+  <xacro:property name="wheel_separation_x" value="0.7"/>
+  <xacro:property name="wheel_separation_y" value="0.5"/>
+  <xacro:property name="wheel_roll_angle" value="${pi/2}"/>
+
+  <!-- Definir o chassis do robô -->
+  <link name="chassis">
+    <visual>
+      <origin xyz="0 0 ${chassis_height}" rpy="0 0 0"/>
+      <geometry>
+        <box size="${chassis_length} ${chassis_width} ${chassis_height}"/>
+      </geometry>
+      <material name="grey">
+        <color rgba="0.7 0.7 0.7 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 ${chassis_height}" rpy="0 0 0"/>
+      <geometry>
+        <box size="${chassis_length} ${chassis_width} ${chassis_height}"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="5"/>
+      <origin xyz="0 0 ${chassis_height}" rpy="0 0 0"/>
+      <inertia ixx="0.1" ixy="0.0" ixz="0.0" iyy="0.1" iyz="0.0" izz="0.1"/>
+    </inertial>
+  </link>
+
+  <!-- Definir a macro para uma roda -->
+  <xacro:macro name="wheel" params="name x y">
+    <link name="${name}">
+      <visual>
+        <origin xyz="0 0 ${chassis_height}" rpy="0 0 0"/>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+        </geometry>
+        <material name="black">
+          <color rgba="0.0 0.0 0.0 1.0"/>
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 ${chassis_height}" rpy="0 0 0"/>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <mass value="1"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+      </inertial>
+    </link>
+
+    <!-- Junta contínua conectando a roda ao chassis -->
+    <joint name="${name}_joint" type="continuous">
+      <parent link="chassis"/>
+      <child link="${name}"/>
+      <origin xyz="${x} ${y} ${wheel_radius}" rpy="${wheel_roll_angle} 0 0"/>
+      <axis xyz="0 1 0"/>  <!-- As rodas devem girar ao longo do eixo Y -->
+    </joint>
+  </xacro:macro>
+
+  <!-- Adicionar as quatro rodas -->
+  <xacro:wheel name="front_left_wheel"  x="${chassis_length / 2}" y="${chassis_width / 2}"/>
+  <xacro:wheel name="front_right_wheel" x="${chassis_length / 2}" y="-${chassis_width / 2}"/>
+  <xacro:wheel name="rear_left_wheel"   x="-${chassis_length / 2}" y="${chassis_width / 2}"/>
+  <xacro:wheel name="rear_right_wheel"  x="-${chassis_length / 2}" y="-${chassis_width / 2}"/>
+
+</robot>

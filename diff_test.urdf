@@ -1,0 +1,190 @@
+<?xml version="1.0"?>
+<robot name="ackermann_robot" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <gazebo>
+    <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
+      <robotNamespace>/</robotNamespace>
+    </plugin>
+  </gazebo>
+
+  <link name="dummy_link"/>
+
+  <!-- Base Link (Chassis) -->
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0.1" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.5 0.3 0.1"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.1" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.5 0.3 0.1"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="5.0"/>
+      <origin xyz="0 0 0.1" rpy="0 0 0"/>
+      <inertia ixx="0.083" ixy="0" ixz="0" iyy="0.083" iyz="0" izz="0.083"/>
+    </inertial>
+  </link>
+
+  <joint name="fixed_joint" type="fixed">
+    <parent link="dummy_link"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="rear_left_wheel">
+    <visual>
+      <geometry>
+        <cylinder radius="0.1" length="0.08"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.1" length="0.08"/>
+      </geometry>
+              <surface>
+            <friction>
+                <ode>
+                    <mu>1.0</mu>       <!-- Atrito direcional -->
+                    <mu2>1.0</mu2>     <!-- Atrito transversal -->
+                </ode>
+            </friction>
+            <contact>
+                <ode/>
+            </contact>
+        </surface>
+    </collision>
+    <inertial>
+      <mass value="1.0"/>
+      <origin xyz="-0.2 0.2 0.1" rpy="-1.57 0 0"/>
+      <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <link name="rear_right_wheel">
+    <visual>
+      <geometry>
+        <cylinder radius="0.1" length="0.08"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.1" length="0.08"/>
+      </geometry>
+        <surface>
+            <friction>
+                <ode>
+                    <mu>1.0</mu>       <!-- Atrito direcional -->
+                    <mu2>1.0</mu2>     <!-- Atrito transversal -->
+                </ode>
+            </friction>
+            <contact>
+                <ode/>
+            </contact>
+        </surface>
+    </collision>
+    <inertial>
+      <mass value="1.0"/>
+      <origin xyz="-0.2 -0.2 0.1" rpy="-1.57 0 0"/>
+      <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <joint name="rear_left_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="rear_left_wheel"/>
+    <origin xyz="-0.2 0.2 0.1" rpy="-1.57 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <joint name="rear_right_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="rear_right_wheel"/>
+    <origin xyz="-0.2 -0.2 0.1" rpy="-1.57 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <!-- Castor wheel -->
+  <link name="castor_wheel">
+    <visual>
+      <geometry>
+        <sphere radius="0.05"/>
+      </geometry>
+      <origin xyz="0.1 0 0.05" rpy="0 0 0"/>
+    </visual>
+    <collision>
+      <geometry>
+        <sphere radius="0.05"/>
+      </geometry>
+      <origin xyz="0.1 0 0.05" rpy="0 0 0"/>
+    </collision>
+    <inertial>
+      <mass value="0.1"/>
+      <origin xyz="0.1 0 0.05" rpy="0 0 0"/>
+      <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <!-- Castor joint -->
+  <joint name="castor_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="castor_wheel"/>
+    <origin xyz="0.1 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+<transmission name="rear_right_wheel_trans">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="rear_right_wheel_joint">
+      <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="rear_right_wheel_motor">
+      <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+      <mechanicalReduction>1.0</mechanicalReduction>
+    </actuator>
+  </transmission>
+
+<transmission name="rear_left_wheel_trans">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="rear_left_wheel_joint">
+      <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="rear_left_wheel_motor">
+      <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+      <mechanicalReduction>1.0</mechanicalReduction>
+    </actuator>
+</transmission>
+
+  <gazebo>
+  <plugin name="diff_drive_controller" filename="libgazebo_ros_diff_drive.so">
+    <robotNamespace>ackermann_robot</robotNamespace>
+    <leftJoint>rear_left_wheel_joint</leftJoint>
+    <rightJoint>rear_right_wheel_joint</rightJoint>
+    <wheelSeparation>0.6</wheelSeparation>
+    <wheelRadius>0.1</wheelRadius>
+    <commandTopic>/cmd_vel</commandTopic>
+    <odometryTopic>/odom</odometryTopic>
+    <publishTf>true</publishTf>
+  </plugin>
+
+  <!-- ConfiguraÃ§Ãĩes de PID -->
+  <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
+    <pid_gains>
+      <rear_left_wheel_joint>
+        <p>100.0</p>
+        <i>0.01</i>
+        <d>1.0</d>
+      </rear_left_wheel_joint>
+      <rear_right_wheel_joint>
+        <p>100.0</p>
+        <i>0.01</i>
+        <d>1.0</d>
+      </rear_right_wheel_joint>
+    </pid_gains>
+  </plugin>
+</gazebo>
+
+</robot>

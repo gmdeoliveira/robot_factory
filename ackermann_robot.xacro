@@ -1,0 +1,198 @@
+<?xml version="1.0"?>
+<robot name="ackermann_robot" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:property name="pi" value="3.14"/>
+  <xacro:property name="wheel_roll_angle" value="${pi/2}"/>
+
+  <!-- Base Link (Chassis) -->
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0.1" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.5 0.3 0.1"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.1" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.5 0.3 0.1"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 0.1" rpy="0 0 0"/>
+      <mass value="5.0"/>
+      <inertia ixx="0.083" ixy="0" ixz="0" iyy="0.083" iyz="0" izz="0.083"/>
+    </inertial>
+  </link>
+
+  <link name="steering_left_wheel">
+    <visual>
+      <origin xyz="0 0 0" rpy="${wheel_roll_angle} 0 0"/>
+      <geometry>
+        <cylinder radius="0.1" length="0.08"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="${wheel_roll_angle} 0 0"/>
+      <geometry>
+        <cylinder radius="0.1" length="0.08"/>
+      </geometry>
+      <friction>
+        <ode>
+          <mu>10.0</mu>
+          <mu2>10.0</mu2>
+          <slip1>0.0</slip1>
+          <slip2>0.0</slip2>
+        </ode>
+      </friction>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 0" rpy="${wheel_roll_angle} 0 0"/>
+      <mass value="1.0"/>
+      <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <link name="steering_right_wheel">
+    <visual>
+      <origin xyz="0 0 0" rpy="${wheel_roll_angle} 0 0"/>
+      <geometry>
+        <cylinder radius="0.1" length="0.08"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="${wheel_roll_angle} 0 0"/>
+      <geometry>
+        <cylinder radius="0.1" length="0.08"/>
+      </geometry>
+      <friction>
+        <ode>
+          <mu>10.0</mu>
+          <mu2>10.0</mu2>
+          <slip1>0.0</slip1>
+          <slip2>0.0</slip2>
+        </ode>
+      </friction>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 0" rpy="${wheel_roll_angle} 0 0"/>
+      <mass value="1.0"/>
+      <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001"/>
+    </inertial>
+  </link>
+  
+  <link name="rear_left_wheel">
+    <visual>
+      <origin xyz="0 0 0" rpy="${wheel_roll_angle} 0 0"/>
+      <geometry>
+        <cylinder radius="0.1" length="0.08"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="${wheel_roll_angle} 0 0"/>
+      <geometry>
+        <cylinder radius="0.1" length="0.08"/>
+      </geometry>
+      <friction>
+        <ode>
+          <mu>10.0</mu>
+          <mu2>10.0</mu2>
+          <slip1>0.0</slip1>
+          <slip2>0.0</slip2>
+        </ode>
+      </friction>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 0" rpy="${wheel_roll_angle} 0 0"/>
+      <mass value="1.0"/>
+      <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <link name="rear_right_wheel">
+    <visual>
+      <origin xyz="0 0 0" rpy="${wheel_roll_angle} 0 0"/>
+      <geometry>
+        <cylinder radius="0.1" length="0.08"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="${wheel_roll_angle} 0 0"/>
+      <geometry>
+        <cylinder radius="0.1" length="0.08"/>
+      </geometry>
+      <friction>
+        <ode>
+          <mu>10.0</mu>
+          <mu2>10.0</mu2>
+          <slip1>0.0</slip1>
+          <slip2>0.0</slip2>
+        </ode>
+      </friction>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 0" rpy="${wheel_roll_angle} 0 0"/>
+      <mass value="1.0"/>
+      <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <joint name="rear_left_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="rear_left_wheel"/>
+    <origin xyz="-0.2 0.2 0.1" rpy="0 0 0"/>
+    <axis xyz="0 1 0" rpy="0 0 0"/>
+    <limit effort="100" velocity="100"/>
+    <joint_properties damping="1.0" friction="1.0"/>
+  </joint>
+
+  <joint name="rear_right_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="rear_right_wheel"/>
+    <origin xyz="-0.2 -0.2 0.1" rpy="0 0 0"/>
+    <axis xyz="0 1 0" rpy="0 0 0"/>
+    <limit effort="100" velocity="100"/>
+    <joint_properties damping="1.0" friction="1.0"/>
+  </joint>
+
+    <!-- Juntas dianteiras (direcionadas) -->
+  <joint name="front_left_steering_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="steering_left_wheel"/>
+    <origin xyz="0.2 0.2 0.1" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-0.5236" upper="0.5236" effort="10" velocity="1.0"/> <!-- Limite de direção (±30 graus) -->
+  </joint>
+
+  <joint name="front_right_steering_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="steering_right_wheel"/>
+    <origin xyz="0.2 -0.2 0.1" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-0.5236" upper="0.5236" effort="10" velocity="1.0"/> <!-- Limite de direção (±30 graus) -->
+  </joint>
+
+  <!-- Plugin para Ackermann Steering Control diretamente no Xacro -->
+  <gazebo>
+    <plugin name="ackermann_steering_controller" filename="libackermann_steering_controller.so">
+      <robotNamespace>/</robotNamespace>
+      <rear_wheels>                   <!-- Juntas das rodas traseiras -->
+        rear_left_wheel_joint
+        rear_right_wheel_joint
+      </rear_wheels>
+      <front_steering>                <!-- Juntas de direção dianteiras -->
+        front_left_steering_joint
+        front_right_steering_joint
+      </front_steering>
+      <wheel_base>1.0</wheel_base>               <!-- Distância entre eixos -->
+      <wheel_radius>0.2</wheel_radius>           <!-- Raio das rodas -->
+      <steering_limit>0.5235987756</steering_limit> <!-- Limite de direção (±30 graus) -->
+      <cmd_vel_timeout>0.5</cmd_vel_timeout>     <!-- Tempo limite para comando no /cmd_vel -->
+      <base_frame_id>base_link</base_frame_id>   <!-- Frame base do robô -->
+      <enable_odom_tf>true</enable_odom_tf>      <!-- Publicar transformações de odometria -->
+      <publish_rate>50</publish_rate>            <!-- Taxa de publicação de odometria -->
+      <velocity_rolling_window_size>10</velocity_rolling_window_size> <!-- Janela de suavização de odometria -->
+    </plugin>
+  </gazebo>
+
+</robot>

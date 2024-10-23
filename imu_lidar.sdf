@@ -1,0 +1,50 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <model name="simple_robot">
+    <static>false</static>
+    <link name="base_link">
+      <!-- Base link visual -->
+      <visual name="base_visual">
+        <geometry>
+          <box>
+            <size>0.5 0.5 0.1</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.8 0.2 0.2 1</ambient>
+        </material>
+      </visual>
+      
+      <!-- Base link collision -->
+      <collision name="base_collision">
+        <geometry>
+          <box>
+            <size>0.5 0.5 0.1</size>
+          </box>
+        </geometry>
+      </collision>
+
+      <!-- Inertial properties -->
+      <inertial>
+        <mass>5.0</mass>
+        <inertia>
+          <ixx>0.083</ixx>
+          <iyy>0.083</iyy>
+          <izz>0.083</izz>
+        </inertia>
+      </inertial>
+    </link>
+    <!-- Pose of the model -->
+    <pose>0 0 0.1 0 0 0</pose>
+  </model>
+
+  <!-- Include empty world to run the simulation -->
+  <world name="default">
+    <include>
+      <uri>model://sun</uri>
+    </include>
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+  </world>
+</sdf>
