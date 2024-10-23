@@ -1,0 +1,14 @@
+<launch>
+  <!-- Load robot description -->
+  <param name="robot_description" command="$(find xacro)/xacro '$(find robot_factory)/urdf/hokuyo.xacro'"/> 
+
+  <!-- Spawn the robot -->
+  <node name="spawn_urdf" 
+        pkg="gazebo_ros" 
+        type="spawn_model" 
+        output="screen"
+        args="-param robot_description -urdf -model hokuyo_robot" />
+
+  <!-- Launch Gazebo -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch"/>
+</launch>

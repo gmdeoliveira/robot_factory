@@ -1,0 +1,20 @@
+<launch>
+  <!-- Configuração do ROS para usar tempo simulado -->
+  <param name="use_sim_time" value="true" />
+
+  <!-- Iniciar o servidor Gazebo (Gazebo Citadel) -->
+  <node name="gazebo" pkg="ros_ign_gazebo" type="create" args="-r /home/malaquias/catkin_ws/src/ackermann_robot/urdf/ackermann_robot.sdf" output="screen">
+    <param name="use_sim_time" value="true"/>
+  </node>
+
+  <!-- Ignition-ROS Bridge para o tópico cmd_vel -->
+  <node name="cmd_vel_bridge" pkg="ros_ign_bridge" type="parameter_bridge" output="screen"
+        args="/cmd_vel@geometry_msgs/Twist@ignition.msgs.Twist">
+  </node>
+
+  <!-- Ignition-ROS Bridge para o tópico steering_cmd (para controlar a direção) -->
+  <node name="steering_cmd_bridge" pkg="ros_ign_bridge" type="parameter_bridge" output="screen"
+        args="/steering_cmd@std_msgs/Float32@ignition.msgs.Double">
+  </node>
+
+</launch>
