@@ -22,14 +22,51 @@
         output="screen" 
         args="-param robot_description -urdf -model ackermann_robot"/>
 
-  <!--Controller definition-->
+  <!-- Define the joint_state_controller type directly -->
+  <param name="joint_state_controller/type" value="joint_state_controller/JointStateController" />
+  <param name="joint_state_controller/publish_rate" value="50" />
+
+  <!--Controller definition--> 
+  <param name="front_left_wheel_steering_joint_position_controller/type" value="effort_controllers/JointPositionController" />
+  <param name="front_left_wheel_steering_joint_position_controller/joint" value="front_left_wheel_steering_joint" />
+  <param name="front_left_wheel_steering_joint_position_controller/pid/p" value="100.0" />
+  <param name="front_left_wheel_steering_joint_position_controller/pid/i" value="0.01" />
+  <param name="front_left_wheel_steering_joint_position_controller/pid/d" value="0.1" />
+
+  <param name="front_right_wheel_steering_joint_position_controller/type" value="effort_controllers/JointPositionController" />
+  <param name="front_right_wheel_steering_joint_position_controller/joint" value="front_right_wheel_steering_joint" />
+  <param name="front_right_wheel_steering_joint_position_controller/pid/p" value="100.0" />
+  <param name="front_right_wheel_steering_joint_position_controller/pid/i" value="0.01" />
+  <param name="front_right_wheel_steering_joint_position_controller/pid/d" value="0.1" />
+
+  <param name="rear_left_wheel_joint_velocity_controller/type" value="velocity_controllers/JointVelocityController" />
+  <!--param name="rear_left_wheel_joint_velocity_controller/type" value="effort_controllers/JointVelocityController"-->
+  <param name="rear_left_wheel_joint_velocity_controller/joint" value="rear_left_wheel_joint" />
+  <param name="rear_left_wheel_joint_velocity_controller/pid/p" value="10.0" />
+  <param name="rear_left_wheel_joint_velocity_controller/pid/i" value="0.01" />
+  <param name="rear_left_wheel_joint_velocity_controller/pid/d" value="0.1" />
+  <!--param name="gazebo_ros_control/pid_gains/rear_left_wheel_joint/p" value="10.0" />
+  <param name="gazebo_ros_control/pid_gains/rear_left_wheel_joint/i" value="0.01" />
+  <param name="gazebo_ros_control/pid_gains/rear_left_wheel_joint/d" value="0.1" /-->
+
+  <param name="rear_right_wheel_joint_velocity_controller/type" value="velocity_controllers/JointVelocityController" />
+  <!--param name="rear_right_wheel_joint_velocity_controller/type" value="effort_controllers/JointVelocityController"-->
+  <param name="rear_right_wheel_joint_velocity_controller/joint" value="rear_right_wheel_joint" />
+  <param name="rear_right_wheel_joint_velocity_controller/pid/p" value="10.0" />
+  <param name="rear_right_wheel_joint_velocity_controller/pid/i" value="0.01" />
+  <param name="rear_right_wheel_joint_velocity_controller/pid/d" value="0.1" />
+  <!--param name="gazebo_ros_control/pid_gains/rear_right_wheel_joint/p" value="10.0" />
+  <param name="gazebo_ros_control/pid_gains/rear_right_wheel_joint/i" value="0.01" />
+  <param name="gazebo_ros_control/pid_gains/rear_right_wheel_joint/d" value="0.1" /-->
+
   <node name="controller_spawner" 
         pkg="controller_manager" 
         type="spawner" 
+        respawn="false"
         output="screen" 
-        args="ackermann_steering_controller">
-
-        <param name="use_sim_time" value="true"/>
-        <rosparam command="load" file="$(find robot_factory)/config/ackermann.yaml"/>
-  </node>
+        args="joint_state_controller 
+              front_left_wheel_steering_joint_position_controller 
+              front_right_wheel_steering_joint_position_controller
+              rear_left_wheel_joint_velocity_controller
+              rear_right_wheel_joint_velocity_controller"/>
 </launch>
