@@ -4,6 +4,9 @@
   <xacro:property name="pi" value="3.14"/>
   <xacro:property name="wheel_roll_angle" value="${pi/2}"/>
 
+  <!--This link it is just to avoid a warning-->
+  <link name="dummy_link"/>
+
   <!-- Base Link (Chassis) -->
   <link name="base_link">
     <visual>
@@ -24,6 +27,13 @@
       <inertia ixx="0.083" ixy="0" ixz="0" iyy="0.083" iyz="0" izz="0.083"/>
     </inertial>
   </link>
+
+  <!--This joint it is just to avoid a warning-->
+  <joint name="fixed_joint" type="fixed">
+    <parent link="dummy_link"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
 
   <link name="steering_left_wheel">
     <visual>
@@ -158,16 +168,16 @@
 
 
     <!-- Juntas dianteiras (direcionadas) -->
-  <joint name="front_left_steering_joint" type="revolute">
+  <joint name="front_left_wheel_steering_joint" type="revolute">
     <parent link="base_link"/>
-    <child link="front_left_steering_rotation_link"/>
+    <child link="front_left_wheel_steering_rotation_link"/>
     <origin xyz="0.2 0.2 0.1" rpy="0 0 0"/>
     <axis xyz="0 0 1"/>
     <limit lower="-0.5236" upper="0.5236" effort="10" velocity="1.0"/> <!-- Limite de direção (±30 graus) -->
   </joint>
 
   <!--Link intermediário para a rotação da roda dianteira esquerda-->
-  <link name="front_left_steering_rotation_link">
+  <link name="front_left_wheel_steering_rotation_link">
     <visual>
         <geometry>
             <box size="0.01 0.01 0.01"/>
@@ -181,7 +191,7 @@
 
   <!-- Junta de rotação para o eixo y (rotação da roda) -->
   <joint name="front_left_wheel_rotation_joint" type="continuous">
-      <parent link="front_left_steering_rotation_link"/>
+      <parent link="front_left_wheel_steering_rotation_link"/>
       <child link="steering_left_wheel"/>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <axis xyz="0 1 0"/>
@@ -189,16 +199,16 @@
   </joint>
 
 
-  <joint name="front_right_steering_joint" type="revolute">
+  <joint name="front_right_wheel_steering_joint" type="revolute">
     <parent link="base_link"/>
-    <child link="front_right_steering_rotation_link"/>
+    <child link="front_right_wheel_steering_rotation_link"/>
     <origin xyz="0.2 -0.2 0.1" rpy="0 0 0"/>
     <axis xyz="0 0 1"/>
     <limit lower="-0.5236" upper="0.5236" effort="10" velocity="1.0"/> <!-- Limite de direção (±30 graus) -->
   </joint>
 
   <!--Link intermediário para a rotação da roda dianteira esquerda-->
-  <link name="front_right_steering_rotation_link">
+  <link name="front_right_wheel_steering_rotation_link">
     <visual>
         <geometry>
             <box size="0.01 0.01 0.01"/>
@@ -212,7 +222,7 @@
 
   <!-- Junta de rotação para o eixo y (rotação da roda) -->
   <joint name="front_right_wheel_rotation_joint" type="continuous">
-    <parent link="front_right_steering_rotation_link"/>
+    <parent link="front_right_wheel_steering_rotation_link"/>
     <child link="steering_right_wheel"/>
     <origin xyz="0 0 0" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
@@ -221,22 +231,22 @@
   </joint>
 
 
-<transmission name="front_left_steering_trans">
+<transmission name="front_left_wheel_steering_trans">
   <type>transmission_interface/SimpleTransmission</type>
-  <joint name="front_left_steering_joint">
+  <joint name="front_left_wheel_steering_joint">
     <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
   </joint>
-  <actuator name="front_left_steering_motor">
+  <actuator name="front_left_wheel_steering_motor">
     <mechanicalReduction>1</mechanicalReduction>
   </actuator>
 </transmission>
 
-<transmission name="front_right_steering_trans">
+<transmission name="front_right_wheel_steering_trans">
   <type>transmission_interface/SimpleTransmission</type>
-  <joint name="front_right_steering_joint">
+  <joint name="front_right_wheel_steering_joint">
     <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
   </joint>
-  <actuator name="front_right_steering_motor">
+  <actuator name="front_right_wheel_steering_motor">
     <mechanicalReduction>1</mechanicalReduction>
   </actuator>
 </transmission>
@@ -262,6 +272,133 @@
     <mechanicalReduction>1</mechanicalReduction>
   </actuator>
 </transmission>
+
+    <!-- IMU Sensor -->
+    <link name="imu_link">
+        <inertial>
+            <origin xyz="0 0 0" />
+            <mass value="0.01" />
+            <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001" />
+        </inertial>
+
+        <visual>
+            <origin xyz="0 0 0" />
+            <geometry>
+                <box size="0.01 0.01 0.01" />
+            </geometry>
+        </visual>
+    </link>
+
+    <joint name="imu_joint" type="fixed">
+        <parent link="base_link" />
+        <child link="imu_link" />
+        <origin xyz="0 0 0.16" rpy="0 0 0" />
+    </joint>
+
+    <gazebo reference="imu_link">
+        <sensor name="my_imu" type="imu">
+            <always_on>true</always_on>
+            <plugin name="my_imu_plugin" filename="libgazebo_ros_imu_sensor.so">
+                <topicName>/imu</topicName>
+                <updateRateHZ>100</updateRateHZ>
+                <frameName>imu_link</frameName>
+            </plugin>
+        </sensor>
+    </gazebo>
+
+
+    <!--Sensor LiDAR 2D -->
+    <link name="lidar_link">
+      <inertial>
+          <origin xyz="0 0 0" />
+          <mass value="0.01" />
+          <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001" />
+      </inertial>
+
+      <visual>
+          <origin xyz="0 0 0" />
+          <geometry>
+              <box size="0.01 0.01 0.01" />
+          </geometry>
+      </visual>
+    </link>
+
+    <joint name="lidar_joint" type="fixed">
+        <parent link="base_link" />
+        <child link="lidar_link" />
+        <origin xyz="0 0 0.21" rpy="0 0 0" />
+    </joint>
+    
+    <gazebo reference="lidar_link">
+        <sensor type="ray" name="lidar_sensor">
+            <pose>0 0 0 0 0 0</pose>
+            <ray>
+                <scan>
+                    <horizontal>
+                        <samples>640</samples>
+                        <resolution>1</resolution>
+                        <min_angle>-${pi}</min_angle>
+                        <max_angle>${pi}</max_angle>
+                    </horizontal>
+                </scan>
+                <range>
+                    <min>0.08</min>
+                    <max>10</max>
+                    <resolution>0.01</resolution>
+                </range>
+                <noise>
+                    <type>gaussian</type>
+                    <mean>0.0</mean>
+                    <stddev>0.01</stddev>
+                </noise>
+            </ray>
+            <plugin name="gazebo_ros_laser" filename="libgazebo_ros_laser.so">
+                <!-- Publicar a nuvem de pontos no tópico /lidar/points -->
+                <topicName>/lidar/points</topicName>
+                <frameName>lidar_link</frameName>
+            </plugin>
+            <always_on>1</always_on>
+            <update_rate>30</update_rate>
+            <visualize>true</visualize>
+        </sensor>
+    </gazebo>
+
+
+  <!-- GPS Sensor -->
+  <link name="gps_link">
+    <inertial>
+        <origin xyz="0 0 0" />
+        <mass value="0.01" />
+        <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001" />
+    </inertial>
+
+    <visual>
+        <origin xyz="0 0 0" />
+        <geometry>
+            <box size="0.01 0.01 0.01" />
+        </geometry>
+    </visual>
+  </link>
+
+  <joint name="gps_joint" type="fixed">
+      <parent link="base_link" />
+      <child link="gps_link" />
+      <origin xyz="0 0 0.17" rpy="0 0 0" />
+  </joint>
+
+  <gazebo>
+    <plugin name="gps" filename="libhector_gazebo_ros_gps.so">
+      <alwaysOn>1</alwaysOn>
+      <updateRate>10.0</updateRate>
+      <bodyName>dummy_link</bodyName>
+      <topicName>fix</topicName>
+      <velocityTopicName>fix_velocity</velocityTopicName>
+      <drift>5.0 5.0 5.0</drift>
+      <gaussianNoise>0.1 0.1 0.1</gaussianNoise>
+      <velocityDrift>0 0 0</velocityDrift>
+      <velocityGaussianNoise>0.1 0.1 0.1</velocityGaussianNoise>
+    </plugin>
+   </gazebo>
 
   <gazebo>
     <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
