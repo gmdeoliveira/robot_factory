@@ -137,6 +137,7 @@
     </inertial>
   </link>
 
+
   <joint name="rear_left_wheel_joint" type="continuous">
     <parent link="base_link"/>
     <child link="rear_left_wheel"/>
@@ -155,43 +156,116 @@
     <joint_properties damping="1.0" friction="1.0"/>
   </joint>
 
+
     <!-- Juntas dianteiras (direcionadas) -->
   <joint name="front_left_steering_joint" type="revolute">
     <parent link="base_link"/>
-    <child link="steering_left_wheel"/>
+    <child link="front_left_steering_rotation_link"/>
     <origin xyz="0.2 0.2 0.1" rpy="0 0 0"/>
     <axis xyz="0 0 1"/>
     <limit lower="-0.5236" upper="0.5236" effort="10" velocity="1.0"/> <!-- Limite de direção (±30 graus) -->
   </joint>
 
+  <!--Link intermediário para a rotação da roda dianteira esquerda-->
+  <link name="front_left_steering_rotation_link">
+    <visual>
+        <geometry>
+            <box size="0.01 0.01 0.01"/>
+        </geometry>
+    </visual>
+    <inertial>
+        <mass value="0.01"/>
+        <inertia ixx="0.00001" ixy="0.0" ixz="0.0" iyy="0.00001" iyz="0.0" izz="0.00001"/>
+    </inertial>
+  </link>
+
+  <!-- Junta de rotação para o eixo y (rotação da roda) -->
+  <joint name="front_left_wheel_rotation_joint" type="continuous">
+      <parent link="front_left_steering_rotation_link"/>
+      <child link="steering_left_wheel"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+      <limit lower="0" upper="0" effort="50" velocity="10.0"/>
+  </joint>
+
+
   <joint name="front_right_steering_joint" type="revolute">
     <parent link="base_link"/>
-    <child link="steering_right_wheel"/>
+    <child link="front_right_steering_rotation_link"/>
     <origin xyz="0.2 -0.2 0.1" rpy="0 0 0"/>
     <axis xyz="0 0 1"/>
     <limit lower="-0.5236" upper="0.5236" effort="10" velocity="1.0"/> <!-- Limite de direção (±30 graus) -->
   </joint>
 
-  <!-- Plugin para Ackermann Steering Control diretamente no Xacro -->
+  <!--Link intermediário para a rotação da roda dianteira esquerda-->
+  <link name="front_right_steering_rotation_link">
+    <visual>
+        <geometry>
+            <box size="0.01 0.01 0.01"/>
+        </geometry>
+    </visual>
+    <inertial>
+        <mass value="0.01"/>
+        <inertia ixx="0.00001" ixy="0.0" ixz="0.0" iyy="0.00001" iyz="0.0" izz="0.00001"/>
+    </inertial>
+  </link>
+
+  <!-- Junta de rotação para o eixo y (rotação da roda) -->
+  <joint name="front_right_wheel_rotation_joint" type="continuous">
+    <parent link="front_right_steering_rotation_link"/>
+    <child link="steering_right_wheel"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit effort="100" velocity="100"/>
+    <joint_properties damping="1.0" friction="1.0"/>
+  </joint>
+
+
+<transmission name="front_left_steering_trans">
+  <type>transmission_interface/SimpleTransmission</type>
+  <joint name="front_left_steering_joint">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+  </joint>
+  <actuator name="front_left_steering_motor">
+    <mechanicalReduction>1</mechanicalReduction>
+  </actuator>
+</transmission>
+
+<transmission name="front_right_steering_trans">
+  <type>transmission_interface/SimpleTransmission</type>
+  <joint name="front_right_steering_joint">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+  </joint>
+  <actuator name="front_right_steering_motor">
+    <mechanicalReduction>1</mechanicalReduction>
+  </actuator>
+</transmission>
+
+<transmission name="rear_left_wheel_trans">
+  <type>transmission_interface/SimpleTransmission</type>
+  <joint name="rear_left_wheel_joint">
+    <!--hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface-->
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+  </joint>
+  <actuator name="rear_left_wheel_motor">
+    <mechanicalReduction>1</mechanicalReduction>
+  </actuator>
+</transmission>
+
+<transmission name="rear_right_wheel_trans">
+  <type>transmission_interface/SimpleTransmission</type>
+  <joint name="rear_right_wheel_joint">
+    <!--hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface-->
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+  </joint>
+  <actuator name="rear_right_wheel_motor">
+    <mechanicalReduction>1</mechanicalReduction>
+  </actuator>
+</transmission>
+
   <gazebo>
-    <plugin name="ackermann_steering_controller" filename="libackermann_steering_controller.so">
+    <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
       <robotNamespace>/</robotNamespace>
-      <rear_wheels>                   <!-- Juntas das rodas traseiras -->
-        rear_left_wheel_joint
-        rear_right_wheel_joint
-      </rear_wheels>
-      <front_steering>                <!-- Juntas de direção dianteiras -->
-        front_left_steering_joint
-        front_right_steering_joint
-      </front_steering>
-      <wheel_base>1.0</wheel_base>               <!-- Distância entre eixos -->
-      <wheel_radius>0.2</wheel_radius>           <!-- Raio das rodas -->
-      <steering_limit>0.5235987756</steering_limit> <!-- Limite de direção (±30 graus) -->
-      <cmd_vel_timeout>0.5</cmd_vel_timeout>     <!-- Tempo limite para comando no /cmd_vel -->
-      <base_frame_id>base_link</base_frame_id>   <!-- Frame base do robô -->
-      <enable_odom_tf>true</enable_odom_tf>      <!-- Publicar transformações de odometria -->
-      <publish_rate>50</publish_rate>            <!-- Taxa de publicação de odometria -->
-      <velocity_rolling_window_size>10</velocity_rolling_window_size> <!-- Janela de suavização de odometria -->
     </plugin>
   </gazebo>
 
