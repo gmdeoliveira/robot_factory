@@ -1,0 +1,38 @@
+<launch>
+  <!-- Launch Gazebo and load the robot model -->
+  <param name="robot_description" command="$(find xacro)/xacro '$(find robot_factory)/urdf/ackermann_robot.xacro'" />
+
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="screen">
+    <param name="publish_frequency" type="double" value="50.0" />
+    <param name="tf_prefix" value=""/>
+  </node>
+
+  <!-- Gazebo -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="paused" value="true"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="true"/>
+    <arg name="headless" value="false"/>
+  </include>
+
+  <!-- Spawn robot in Gazebo -->
+  <node name="spawn_ackermann_robot" 
+        pkg="gazebo_ros" 
+        type="spawn_model" 
+        output="screen" 
+        args="-param robot_description -urdf -model ackermann_robot"/>
+
+  <node name="controller_spawner" 
+        pkg="controller_manager" 
+        type="spawner" 
+        respawn="false"
+        output="screen" 
+        args="ackermann_steering_controller"/>
+
+  <param name="ackermann_steering_controller/type" value="ackermann_steering_controller/AckermannSteeringController" />
+  <param name="ackermann_steering_controller/rear_wheel" value="rear_axle_joint" />
+  <param name="ackermann_steering_controller/front_steer" value="steering_joint" />
+  <param name="pose_covariance_diagonal" type="yaml" value="[0.001, 0.001, 1000000.0, 1000000.0, 1000000.0, 1000.0]" />
+  <param name="twist_covariance_diagonal" type="yaml" value="[0.001, 0.001, 1000000.0, 1000000.0, 1000000.0, 1000.0]" />
+
+</launch>
