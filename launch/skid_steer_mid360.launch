@@ -1,0 +1,34 @@
+<launch>
+  <arg name="world_name" default="$(find robot_factory)/worlds/parking_lot.world"/>
+  
+  <!-- Launch Gazebo and load the robot model -->
+  <param name="robot_description" command="$(find xacro)/xacro '$(find robot_factory)/urdf/skid_steer_mid360.xacro'"/> 
+  
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="screen">
+    <param name="publish_frequency" type="double" value="50.0" />
+    <param name="tf_prefix" value=""/>
+  </node>
+
+  <!-- Gazebo -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="paused" value="true"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="true"/>
+    <arg name="headless" value="false"/>
+    <arg name="world_name" value="$(arg world_name)"/>
+  </include>
+
+  <!-- Spawn robot in Gazebo -->
+  <node name="spawn_skid_steer_mid360_robot" 
+        pkg="gazebo_ros" 
+        type="spawn_model" 
+        output="screen" 
+        args="-param robot_description -urdf -model skid_steer_mid360"/> 
+
+  <!--Controller definition-->
+  <node name="controller_spawner" 
+        pkg="controller_manager" 
+        type="spawner" 
+        output="screen" 
+        args="skid_steer_controller"/>
+</launch>
