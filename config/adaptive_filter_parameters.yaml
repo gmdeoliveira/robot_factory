@@ -12,3 +12,6 @@
   wheelG: 0.05
   imuG: 0.1
 
+  # Topic names
+  imuTopic: "/imu"
+  wheelTopic: "/odom"
