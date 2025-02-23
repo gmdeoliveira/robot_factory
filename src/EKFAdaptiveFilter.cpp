@@ -119,7 +119,7 @@ public:
         // Subscriber
         subImu = nh.subscribe<sensor_msgs::Imu>(imuTopic, 50, &AdaptiveFilter::imuHandler, this);
         subWheelOdometry = nh.subscribe<nav_msgs::Odometry>(wheelTopic, 5, &AdaptiveFilter::wheelOdometryHandler, this);
-        //subLaserOdometry = nh.subscribe<nav_msgs::Odometry>("/ekf_loam/laser_odom_to_initOut", 5, &AdaptiveFilter::laserOdometryHandler, this);
+        subLaserOdometry = nh.subscribe<nav_msgs::Odometry>("/Odometry", 5, &AdaptiveFilter::laserOdometryHandler, this);
         
         // Publisher
         pubFilteredOdometry = nh.advertise<nav_msgs::Odometry> ("/filter_odom", 5);
@@ -345,7 +345,7 @@ public:
         H = Eigen::MatrixXd::Zero(N_LIDAR,N_STATES);
         H.block(0,6,6,6) = Eigen::MatrixXd::Identity(N_LIDAR,N_LIDAR);
 
-        // Error propagation
+        // Error propagation     
         G = jacobian_lidar_measurement(lidarMeasure, lidarMeasureL, dt);
         Gl = jacobian_lidar_measurementL(lidarMeasure, lidarMeasureL, dt);
 
@@ -353,7 +353,7 @@ public:
         // Q =  G*E_lidar*G.transpose();
 
         // data save 
-        publish_indirect_lidar_measurement(Y, Q);        
+        //publish_indirect_lidar_measurement(Y, Q);        
 
         // Kalman's gain
         S = H*P*H.transpose() + Q;
@@ -614,7 +614,7 @@ public:
         int k = 0;
         for (int i = 0; i < 6; i++){
             for (int j = 0; j < 6; j++){
-                laserOdometry->pose.covariance[k] = E_lidar(i,j);
+                E_lidar(i,j) = laserOdometry->pose.covariance[k];
                 k++;
             }
         } 
@@ -690,7 +690,7 @@ public:
 
         pubFilteredOdometry.publish(filteredOdometry);
     }
-
+    /*
     void publish_indirect_lidar_measurement(VectorXd y, MatrixXd Pi){
         indLiDAROdometry.header = headerL;
         indLiDAROdometry.header.frame_id = "chassis_init";
@@ -714,7 +714,7 @@ public:
         } 
 
         pubIndLiDARMeasurement.publish(indLiDAROdometry);
-    }
+    }*/
 
     //----------
     // runs
@@ -727,6 +727,7 @@ public:
         double t_now;
         double dt_now;
 
+        //ROS_INFO("Running...");  
         while (ros::ok())
         {
             // Prediction
@@ -773,7 +774,8 @@ public:
             }
 
             //Corection LiDAR
-            if (enableFilter && enableLidar && lidarActivated && lidarNew){                
+            if (enableFilter && enableLidar && lidarActivated && lidarNew){      
+                //ROS_INFO("Lidar correction"); //DEBUG
                 // correction stage
                 correction_lidar_stage(lidar_dt);
 
@@ -827,6 +829,7 @@ int main(int argc, char** argv)
 
     if (enableFilter){
         ROS_INFO("\033[1;32m---->\033[0m Adaptive Filter Started.");
+        ROS_INFO("Just testing..."); 
         // runs
         AF.run();
     }else{
