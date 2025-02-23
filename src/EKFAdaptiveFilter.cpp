@@ -26,6 +26,8 @@ float wheelG;
 float imuG;
 
 std::string filterFreq;
+std::string imuTopic;
+std::string wheelTopic;
 
 std::mutex mtx; 
 
@@ -115,8 +117,8 @@ public:
         nh("~")
     {
         // Subscriber
-        subImu = nh.subscribe<sensor_msgs::Imu>("/imu/data", 50, &AdaptiveFilter::imuHandler, this);
-        subWheelOdometry = nh.subscribe<nav_msgs::Odometry>("/husky_velocity_controller/odom", 5, &AdaptiveFilter::wheelOdometryHandler, this);
+        subImu = nh.subscribe<sensor_msgs::Imu>(imuTopic, 50, &AdaptiveFilter::imuHandler, this);
+        subWheelOdometry = nh.subscribe<nav_msgs::Odometry>(wheelTopic, 5, &AdaptiveFilter::wheelOdometryHandler, this);
         //subLaserOdometry = nh.subscribe<nav_msgs::Odometry>("/ekf_loam/laser_odom_to_initOut", 5, &AdaptiveFilter::laserOdometryHandler, this);
         
         // Publisher
@@ -603,11 +605,20 @@ public:
         lidarMeasure.block(0,0,3,1) << laserOdometry->pose.pose.position.x, laserOdometry->pose.pose.position.y, laserOdometry->pose.pose.position.z;
         lidarMeasure.block(3,0,3,1) << roll, pitch, yaw;    
 
-        // covariance
-        double corner = double(laserOdometry->twist.twist.linear.x);
-        double surf = double(laserOdometry->twist.twist.angular.x); 
+        //old covariance calculation method
+        //double corner = double(laserOdometry->twist.twist.linear.x);
+        //double surf = double(laserOdometry->twist.twist.angular.x); 
+        //E_lidar = adaptive_covariance(corner, surf);
 
-        E_lidar = adaptive_covariance(corner, surf);
+        // lidar pose convariance
+        int k = 0;
+        for (int i = 0; i < 6; i++){
+            for (int j = 0; j < 6; j++){
+                laserOdometry->pose.covariance[k] = E_lidar(i,j);
+                k++;
+            }
+        } 
+        //E_lidar = laserOdometry->pose.covariance;
 
         // time
         lidar_dt = lidarTimeCurrent - lidarTimeLast;
@@ -803,6 +814,9 @@ int main(int argc, char** argv)
         nh_.param("/adaptive_filter/lidarG", lidarG, float(1000));
         nh_.param("/adaptive_filter/wheelG", wheelG, float(0.05));
         nh_.param("/adaptive_filter/imuG", imuG, float(0.1));
+
+        nh_.param("/adaptive_filter/imuTopic", imuTopic, std::string("/imu/data"));
+        nh_.param("/adaptive_filter/wheelTopic", wheelTopic, std::string("/husky_velocity_controller/odom"));
     }
     catch (int e)
     {
