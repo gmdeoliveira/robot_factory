@@ -1,0 +1,21 @@
+<launch>  
+  <rosparam command="load" file="$(find robot_factory)/config/adaptive_filter_parameters.yaml" />
+
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(find robot_factory)/worlds/corredor_500m.world"/>
+    <arg name="paused" value="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="true"/>
+    <arg name="headless" value="false"/>
+    <arg name="debug" value="false"/>
+  </include>
+
+  <include file="$(find husky_gazebo)/launch/spawn_husky.launch">
+    <arg name="x" value="-5.0"/>
+  </include>
+
+  <node pkg="robot_factory" 
+      type="EKFAdaptiveFilter"     
+      name="EKFAdaptiveFilter"     
+      output="screen" />  
+</launch>
