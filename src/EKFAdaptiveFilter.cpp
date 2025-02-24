@@ -375,7 +375,7 @@ public:
         // state: {x, y, z, roll, pitch, yaw, vx, vy, vz, wx, wy, wz}
         //        {         (world)         }{        (body)        }
         Eigen::Matrix3d R, Rx, Ry, Rz, J;
-        Eigen::VectorXd xp(N_STATES);
+        Eigen::VectorXd xp(N_STATES), x2;
         Eigen::MatrixXd A(6,6);    
 
         // Rotation matrix
@@ -394,8 +394,13 @@ public:
         A.block(0,0,3,3) = R;
         A.block(3,3,3,3) = J;
 
-        xp.block(0,0,6,1) = x.block(0,0,6,1) + A*x.block(6,0,6,1)*dt;
-        xp.block(6,0,6,1) = x.block(6,0,6,1);
+        // teste para corredor de 500 m
+        //x2 = Eigen::VectorXd(N_STATES);
+        x2 = x;
+        x2.block(7,0,4,1) << 0.0, 0.0, 0.0, 0.0;
+
+        xp.block(0,0,6,1) = x2.block(0,0,6,1) + A*x2.block(6,0,6,1)*dt;
+        xp.block(6,0,6,1) = x2.block(6,0,6,1);
 
         return xp;
     }
@@ -542,7 +547,7 @@ public:
 
         // time
         imu_dt = imuTimeCurrent - imuTimeLast;
-        imu_dt = 0.01;
+        imu_dt = 0.02;
 
         // header
         double timediff = ros::Time::now().toSec() - timeL + imuTimeCurrent;
@@ -570,11 +575,11 @@ public:
 
         // covariance
         E_wheel(0,0) = wheelG*wheelOdometry->twist.covariance[0];
-        E_wheel(1,1) = 100*wheelOdometry->twist.covariance[35];
+        E_wheel(1,1) = 1000*wheelOdometry->twist.covariance[35];
 
         // time
         wheel_dt = wheelTimeCurrent - wheelTimeLast;
-        wheel_dt = 0.05;
+        wheel_dt = 0.02;
 
         // header
         double timediff = ros::Time::now().toSec() - timeL + wheelTimeCurrent;
@@ -614,7 +619,7 @@ public:
         int k = 0;
         for (int i = 0; i < 6; i++){
             for (int j = 0; j < 6; j++){
-                E_lidar(i,j) = laserOdometry->pose.covariance[k];
+                E_lidar(i,j) = lidarG*laserOdometry->pose.covariance[k];
                 k++;
             }
         } 
