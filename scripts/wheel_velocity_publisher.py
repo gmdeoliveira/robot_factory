@@ -19,23 +19,37 @@ class WheelVelocityPublisher:
                             "skid_steer_mid360::rear_left_wheel",
                             "skid_steer_mid360::rear_right_wheel"]
 
-        rospy.spin()
+        self.wheel_speeds = []
+
+        #rospy.spin()
+
+
+    def run(self):
+        rate = rospy.Rate(20)
+
+        while not rospy.is_shutdown():
+            if len(self.wheel_speeds) == 4:
+                speed_msg = Float32MultiArray(data=self.wheel_speeds)
+                self.pub.publish(speed_msg)
+
+            rate.sleep()
+
 
     def link_callback(self, msg):
-        wheel_speeds = []
+        self.wheel_speeds = []
 
         for wheel in self.wheel_links:
             if wheel in msg.name:
                 index = msg.name.index(wheel)
-                angular_velocity_y = msg.twist[index].angular.y  # Eixo Y é o de rotação da roda
-                wheel_speeds.append(angular_velocity_y)
-
-        if len(wheel_speeds) == 4:
-            speed_msg = Float32MultiArray(data=wheel_speeds)
-            self.pub.publish(speed_msg)
+                angular_velocity_y = -msg.twist[index].angular.y  # Eixo Y é o de rotação da roda
+                #if wheel == "skid_steer_mid360::front_right_wheel" or wheel == "skid_steer_mid360::rear_right_wheel":
+                #    wheel_speeds.append(-angular_velocity_y)
+                #else:
+                self.wheel_speeds.append(angular_velocity_y)
 
 if __name__ == "__main__":
     try:
-        WheelVelocityPublisher()
+        wvp = WheelVelocityPublisher()
+        wvp.run()
     except rospy.ROSInterruptException:
         pass
