@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import rospy
 import tf
+import numpy as np
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float32MultiArray
 from geometry_msgs.msg import Quaternion
@@ -16,12 +17,17 @@ class SkidSteerOdometry:
         # Publicador da odometria
         self.odom_pub = rospy.Publisher("/wheel_odom", Odometry, queue_size=10)
 
+        #self.theta_pub = rospy.Publisher("/theta", Float32, queue_size=10)
+
         # Publicador de transformação TF (odom -> base_link)
         self.odom_broadcaster = tf.TransformBroadcaster()
 
         # Parâmetros do robô
         self.wheel_radius = 0.1   # Raio da roda (m)
-        self.wheel_base = 0.5     # Distância entre rodas esquerda e direita (m)
+        self.wheel_base = 0.38     # Distância entre rodas esquerda e direita (m)
+
+        self.a = 0.25
+        self.b = 0.19
 
         # Estado da odometria
         self.x = 0.0
@@ -37,28 +43,48 @@ class SkidSteerOdometry:
             rospy.logwarn("Dados de velocidade das rodas inválidos!")
             return
 
-        left_front, left_rear, right_front, right_rear = msg.data
+        left_front, right_front, left_rear, right_rear = msg.data
+        #print(msg.data)
 
         # Média das velocidades das rodas de cada lado (convertendo de radianos para metros/s)
         v_left = (left_front + left_rear) / 2.0 * self.wheel_radius
+        #v_left = min(abs(left_front),abs(left_rear)) * (left_front/abs(left_front))
         v_right = (right_front + right_rear) / 2.0 * self.wheel_radius
+        #v_right = min(abs(right_front), abs(right_rear)) * (right_front/abs(right_front))
+        #print(v_right)
+        #print(v_left)
+        #print(' ')
 
         # Velocidade linear e angular do robô
         v = (v_right + v_left) / 2.0
         omega = (v_right - v_left) / self.wheel_base
+        #M = np.array([[0.5, 0.5],[self.b/(2*(self.a*2 + self.b*2)), -self.b/(2*(self.a*2 + self.b*2))]])
+        #vel = np.dot(M,np.array([[v_right],[v_left]]))
+
+        #vel = vel*self.wheel_radius
+
+        #v = vel[0][0]
+        #omega = vel[1][0]
+        #print(omega)
 
         # Atualização da odometria
         current_time = rospy.Time.now()
         dt = (current_time - self.last_time).to_sec()
+        #print(dt)
         self.last_time = current_time
+
 
         delta_x = v * dt * cos(self.theta)
         delta_y = v * dt * sin(self.theta)
         delta_theta = omega * dt
 
-        self.x += delta_x
-        self.y += delta_y
-        self.theta += delta_theta
+        self.x = self.x + delta_x
+        self.y = self.y + delta_y
+        self.theta = self.theta + delta_theta
+        
+
+        #self.odom_pub.publish(self.theta)
+        #print(self.theta*180.0/3.1415)
 
         # Criando mensagem de odometria
         odom = Odometry()
