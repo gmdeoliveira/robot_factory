@@ -107,10 +107,14 @@ private:
     bool lidarNew;
     bool velComp;
 
-    // adaptive covariance
-    double nCorner, nSurf; 
-    double Gx, Gy, Gz, Gphi, Gtheta, Gpsi;
-    float l_min;
+    // adaptive wheel odometry covariance
+    double gain_v, gain_omega;
+    Eigen::MatrixXd wheel_odom_adap_cov_inputs;
+    int col_index, col_index_last;
+    Eigen::VectorXd count;
+    double vx_odom_mean_last;
+    double theta_a;
+    double ax_slip, ax_odom;
 
 public:
     AdaptiveFilter():
@@ -150,6 +154,8 @@ public:
 
         V.resize(N_STATES);
         PV.resize(N_STATES,N_STATES);
+
+        wheel_odom_adap_cov_inputs.resize(5,50);
     }
 
     void initialization(){
@@ -219,44 +225,17 @@ public:
         // Fixed prediction covariance
         E_pred.block(6,6,6,6) = 0.01*P.block(6,6,6,6);
 
-        // adptive covariance constants
-        nCorner = 500.0; // 7000
-        nSurf = 5000;    // 5400
-        
-        Gz = 0.0048;    // x [m]
-        Gx = 0.0022;    // y [m]
-        Gy = 0.0016;    // z [m]
-        Gpsi = 0.0044;  // phi [rad]
-        Gphi = 0.0052;  // theta [rad]
-        Gtheta = 0.005; // psi [rad]
-
-        l_min = 0.005;    
-
-    }
-
-    MatrixXd adaptive_covariance(double fCorner, double fSurf){
-        Eigen::MatrixXd Q(6,6);
-        double cov_x, cov_y, cov_z, cov_phi, cov_psi, cov_theta;
-        
-        // heuristic
-        cov_x     = (nCorner - min(fCorner,nCorner))/nCorner + l_min;
-        cov_y     = (nCorner - min(fCorner,nCorner))/nCorner + l_min;
-        cov_psi = (nCorner - min(fCorner,nCorner))/nCorner + l_min;
-        cov_z     = (nSurf - min(fSurf,nSurf))/nSurf + l_min;
-        cov_phi   = (nSurf - min(fSurf,nSurf))/nSurf + l_min;
-        cov_theta   = (nSurf - min(fSurf,nSurf))/nSurf + l_min;
-        
-        Q = MatrixXd::Zero(6,6);
-        float b = lidarG/1.0;
-        float c = lidarG/1.0;
-        Q(0,0) = b*Gx*cov_x;
-        Q(1,1) = c*Gy*cov_y;
-        Q(2,2) = b*Gz*cov_z;
-        Q(3,3) = c*Gphi*cov_phi;
-        Q(4,4) = b*Gtheta*cov_theta;
-        Q(5,5) = c*Gpsi*cov_psi;
-
-        return Q;
+        // wheel odometry covariance adaptive constants
+        gain_v = 0.001;
+        gain_omega = 0.001;
+        wheel_odom_adap_cov_inputs = Eigen::MatrixXd::Zero(5,50);
+        col_index = 0;
+        col_index_last = 0;
+        count = Eigen::VectorXd::Zero(5);
+        vx_odom_mean_last = 0.0;
+        double theta_a = 0.0;
+        double ax_slip = 0.0;
+        double ax_odom = 0.0;
     }
 
     //-----------------
@@ -506,6 +485,66 @@ public:
         return J;
     }
 
+    void wheelOdometryAdaptiveCovariance(){
+        // wheel odometry covariance adaptive inputs
+        double vx_odom = wheelMeasure(0);
+        double omegaz_odom = wheelMeasure(1);
+        double ax_imu = imuMeasure(0);
+        double ay_imu = imuMeasure(1);
+        double omegaz_imu = imuMeasure(5);
+
+        //build the input matrix
+        col_index_last = col_index;
+        col_index = (col_index + 1) % 50;
+        wheel_odom_adap_cov_inputs.block(0,col_index,5,1) << vx_odom, omegaz_odom, ax_imu, ay_imu, omegaz_imu;
+
+        // calculate the mean of the inputs
+        double vx_odom_mean = 0;
+        double omegaz_odom_mean = 0;
+        double ax_imu_mean = 0;
+        double ay_imu_mean = 0;
+        double omegaz_imu_mean = 0;        
+
+        for (int j = 0; j < 50; j++){   
+            if (wheel_odom_adap_cov_inputs(0,j) != 0){
+                count(0) += 1;
+                vx_odom_mean += wheel_odom_adap_cov_inputs(0,j);
+            }    
+            if (wheel_odom_adap_cov_inputs(1,j) != 0){
+                count(1) += 1;
+                omegaz_odom_mean += wheel_odom_adap_cov_inputs(1,j);
+            }
+            if (wheel_odom_adap_cov_inputs(2,j) != 0){
+                count(2) += 1;
+                ax_imu_mean += wheel_odom_adap_cov_inputs(2,j);
+            }
+            if (wheel_odom_adap_cov_inputs(3,j) != 0){
+                count(3) += 1;
+                ay_imu_mean += wheel_odom_adap_cov_inputs(3,j);
+            }
+            if (wheel_odom_adap_cov_inputs(4,j) != 0){
+                count(4) += 1;
+                omegaz_imu_mean += wheel_odom_adap_cov_inputs(4,j); 
+            }            
+        }
+
+        vx_odom_mean = vx_odom_mean/count(0);
+        omegaz_odom_mean = omegaz_odom_mean/count(1);
+        ax_imu_mean = ax_imu_mean/count(2);
+        ay_imu_mean = ay_imu_mean/count(3);
+        omegaz_imu_mean = omegaz_imu_mean/count(4);
+
+        theta_a = atan(ay_imu_mean/ax_imu_mean);
+
+        ax_slip = abs(vx_odom_mean - ax_imu_mean)*cos(theta_a);
+        
+        ax_odom = (vx_odom_mean - vx_odom_mean_last) / (wheelTimeCurrent - wheelTimeLast);
+        vx_odom_mean_last = vx_odom_mean;
+
+        E_wheel(0,0) = gain_v * abs(ax_odom - ax_slip);
+        E_wheel(1,1) = gain_omega * abs(omegaz_imu - omegaz_odom);
+    }
+
     //----------
     // callbacks
     //----------
@@ -574,8 +613,11 @@ public:
         wheelMeasure << 1.0*wheelOdometry->twist.twist.linear.x, wheelOdometry->twist.twist.angular.z;
 
         // covariance
-        E_wheel(0,0) = wheelG*wheelOdometry->twist.covariance[0];
-        E_wheel(1,1) = 1000*wheelOdometry->twist.covariance[35];
+        //wheelOdometryAdaptiveCovariance();
+        //E_wheel(0,0) = wheelG*wheelOdometry->twist.covariance[0];
+        //E_wheel(0,0) = gain_v * abs(vx_odom - ax_slip);
+        //E_wheel(1,1) = 1000*wheelOdometry->twist.covariance[35];
+        //E_wheel(1,1) = gain_omega * abs(omegaz_imu - omegaz_odom);
 
         // time
         wheel_dt = wheelTimeCurrent - wheelTimeLast;
@@ -794,7 +836,11 @@ public:
             }
             
             ros::spinOnce();
-            r.sleep();        
+            r.sleep();  
+            
+            //TESTE!
+            //col_index = (col_index + 1) % 50;
+            //ROS_INFO("Col index: %d", col_index);
         }
     }
 
@@ -815,15 +861,15 @@ int main(int argc, char** argv)
         nh_.param("/ekf_loam/enableFilter", enableFilter, true);
         nh_.param("/adaptive_filter/enableImu", enableImu, true);
         nh_.param("/adaptive_filter/enableWheel", enableWheel, true);
-        nh_.param("/adaptive_filter/enableLidar", enableLidar, false);
+        nh_.param("/adaptive_filter/enableLidar", enableLidar, true);
         nh_.param("/adaptive_filter/filterFreq", filterFreq, std::string("p"));
 
-        nh_.param("/adaptive_filter/lidarG", lidarG, float(1000));
+        nh_.param("/adaptive_filter/lidarG", lidarG, float(75));
         nh_.param("/adaptive_filter/wheelG", wheelG, float(0.05));
         nh_.param("/adaptive_filter/imuG", imuG, float(0.1));
 
         nh_.param("/adaptive_filter/imuTopic", imuTopic, std::string("/imu/data"));
-        nh_.param("/adaptive_filter/wheelTopic", wheelTopic, std::string("/husky_velocity_controller/odom"));
+        nh_.param("/adaptive_filter/wheelTopic", wheelTopic, std::string("/wheel_odom"));
     }
     catch (int e)
     {
@@ -834,7 +880,7 @@ int main(int argc, char** argv)
 
     if (enableFilter){
         ROS_INFO("\033[1;32m---->\033[0m Adaptive Filter Started.");
-        ROS_INFO("Just testing..."); 
+        //ROS_INFO("Just testing..."); 
         // runs
         AF.run();
     }else{
