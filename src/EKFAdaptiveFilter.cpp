@@ -108,13 +108,8 @@ private:
     bool velComp;
 
     // adaptive wheel odometry covariance
-    double gain_v, gain_omega;
-    Eigen::MatrixXd wheel_odom_adap_cov_inputs;
-    int col_index, col_index_last;
-    Eigen::VectorXd count;
-    double vx_odom_mean_last;
-    double theta_a;
-    double ax_slip, ax_odom;
+    double gamma_vx, gamma_omegaz;
+    double delta_vx, delta_omegaz;
 
 public:
     AdaptiveFilter():
@@ -127,8 +122,7 @@ public:
         
         // Publisher
         pubFilteredOdometry = nh.advertise<nav_msgs::Odometry> ("/filter_odom", 5);
-        //pubIndLiDARMeasurement = nh.advertise<nav_msgs::Odometry> ("/indirect_lidar_measurement", 5); // only publish indirect lidar measuremet 
-
+        
         // Initialization
         allocateMemory();
         initialization();
@@ -225,17 +219,11 @@ public:
         // Fixed prediction covariance
         E_pred.block(6,6,6,6) = 0.01*P.block(6,6,6,6);
 
-        // wheel odometry covariance adaptive constants
-        gain_v = 0.001;
-        gain_omega = 0.001;
-        wheel_odom_adap_cov_inputs = Eigen::MatrixXd::Zero(5,50);
-        col_index = 0;
-        col_index_last = 0;
-        count = Eigen::VectorXd::Zero(5);
-        vx_odom_mean_last = 0.0;
-        double theta_a = 0.0;
-        double ax_slip = 0.0;
-        double ax_odom = 0.0;
+        //wheel odometry covariance adaptive positive constants
+        gamma_vx = 0.01 * 0.05; 
+        gamma_omegaz = 0.01; 
+        delta_vx = 0.0001; 
+        delta_omegaz = 0.00001; 
     }
 
     //-----------------
@@ -261,9 +249,10 @@ public:
         Eigen::VectorXd Y(N_WHEEL), hx(N_WHEEL);
         Eigen::MatrixXd H(N_WHEEL,N_STATES), K(N_STATES,N_WHEEL), E(N_WHEEL,N_WHEEL), S(N_WHEEL,N_WHEEL);
 
-        // measure model of wheel odometry (only foward linear velocity)
+        // measure model of wheel odometry (only forward linear velocity)
         hx(0) = X(6);
         hx(1) = X(11);
+
         // measurement
         Y = wheelMeasure;
 
@@ -291,8 +280,9 @@ public:
 
         // measure model
         hx = X.block(3,0,3,1);
+
         // IMU measurement
-        Y = imuMeasure.block(6,0,3,1);
+        Y = imuMeasure.block(6,0,3,1); // roll pitch yaw
 
         // Jacobian of hx with respect to the states
         H = Eigen::MatrixXd::Zero(3,N_STATES);
@@ -305,8 +295,21 @@ public:
         S = H*P*H.transpose() + E;
         K = P*H.transpose()*S.inverse();
 
-        // correction
-        X = X + K*(Y - hx);
+        // correction - state
+        Eigen::VectorXd residues(3), KR(N_STATES);
+        residues(0) = atan2(sin(Y(0) - hx(0)), cos(Y(0) - hx(0)));
+        residues(1) = atan2(sin(Y(1) - hx(1)), cos(Y(1) - hx(1)));
+        residues(2) = atan2(sin(Y(2) - hx(2)), cos(Y(2) - hx(2)));
+        KR = K*residues;
+
+        X.block(0,0,3,1) = X.block(0,0,3,1) + KR.block(0,0,3,1);
+        X(3) = atan2(sin(X(3) + KR(3)), cos(X(3) + KR(3)));
+        X(4) = atan2(sin(X(4) + KR(4)), cos(X(4) + KR(4)));
+        X(5) = atan2(sin(X(5) + KR(5)), cos(X(5) + KR(5)));
+        X.block(6,0,6,1) = X.block(6,0,6,1) + KR.block(6,0,6,1);
+
+        // X = X + K*(Y - hx); 
+        // correction - covariance
         P = P - K*H*P;
     }
 
@@ -413,7 +416,6 @@ public:
         up = A*u_diff/dt;
 
         return up;
-
     }
 
     //----------
@@ -487,63 +489,12 @@ public:
 
     void wheelOdometryAdaptiveCovariance(){
         // wheel odometry covariance adaptive inputs
-        double vx_odom = wheelMeasure(0);
-        double omegaz_odom = wheelMeasure(1);
-        double ax_imu = imuMeasure(0);
-        double ay_imu = imuMeasure(1);
+        double omegaz_wheel_odom = wheelMeasure(1);
         double omegaz_imu = imuMeasure(5);
 
-        //build the input matrix
-        col_index_last = col_index;
-        col_index = (col_index + 1) % 50;
-        wheel_odom_adap_cov_inputs.block(0,col_index,5,1) << vx_odom, omegaz_odom, ax_imu, ay_imu, omegaz_imu;
-
-        // calculate the mean of the inputs
-        double vx_odom_mean = 0;
-        double omegaz_odom_mean = 0;
-        double ax_imu_mean = 0;
-        double ay_imu_mean = 0;
-        double omegaz_imu_mean = 0;        
-
-        for (int j = 0; j < 50; j++){   
-            if (wheel_odom_adap_cov_inputs(0,j) != 0){
-                count(0) += 1;
-                vx_odom_mean += wheel_odom_adap_cov_inputs(0,j);
-            }    
-            if (wheel_odom_adap_cov_inputs(1,j) != 0){
-                count(1) += 1;
-                omegaz_odom_mean += wheel_odom_adap_cov_inputs(1,j);
-            }
-            if (wheel_odom_adap_cov_inputs(2,j) != 0){
-                count(2) += 1;
-                ax_imu_mean += wheel_odom_adap_cov_inputs(2,j);
-            }
-            if (wheel_odom_adap_cov_inputs(3,j) != 0){
-                count(3) += 1;
-                ay_imu_mean += wheel_odom_adap_cov_inputs(3,j);
-            }
-            if (wheel_odom_adap_cov_inputs(4,j) != 0){
-                count(4) += 1;
-                omegaz_imu_mean += wheel_odom_adap_cov_inputs(4,j); 
-            }            
-        }
-
-        vx_odom_mean = vx_odom_mean/count(0);
-        omegaz_odom_mean = omegaz_odom_mean/count(1);
-        ax_imu_mean = ax_imu_mean/count(2);
-        ay_imu_mean = ay_imu_mean/count(3);
-        omegaz_imu_mean = omegaz_imu_mean/count(4);
-
-        theta_a = atan(ay_imu_mean/ax_imu_mean);
-
-        ax_slip = abs(vx_odom_mean - ax_imu_mean)*cos(theta_a);
-        
-        ax_odom = (vx_odom_mean - vx_odom_mean_last) / (wheelTimeCurrent - wheelTimeLast);
-        vx_odom_mean_last = vx_odom_mean;
-
-        E_wheel(0,0) = gain_v * abs(ax_odom - ax_slip);
-        E_wheel(1,1) = gain_omega * abs(omegaz_imu - omegaz_odom);
-    }
+        E_wheel(0,0) = gamma_vx * abs(omegaz_wheel_odom - omegaz_imu) + delta_vx;
+        E_wheel(1,1) = gamma_omegaz * abs(omegaz_wheel_odom - omegaz_imu) + delta_omegaz;
+    }       
 
     //----------
     // callbacks
@@ -580,8 +531,9 @@ public:
                                 imuIn->angular_velocity_covariance[6], imuIn->angular_velocity_covariance[7], imuIn->angular_velocity_covariance[8];
         E_imu.block(6,6,3,3) << imuIn->orientation_covariance[0], imuIn->orientation_covariance[1], imuIn->orientation_covariance[2],
                                 imuIn->orientation_covariance[3], imuIn->orientation_covariance[4], imuIn->orientation_covariance[5],
-                                imuIn->orientation_covariance[6], imuIn->orientation_covariance[7], imuIn->orientation_covariance[8];
+                                imuIn->orientation_covariance[6], imuIn->orientation_covariance[7], imuIn->orientation_covariance[4]; //a covariância do yaw estava zerada 
 
+        E_imu.block(3,3,3,3) = imuG*E_imu.block(3,3,3,3);
         E_imu.block(6,6,3,3) = imuG*E_imu.block(6,6,3,3);
 
         // time
@@ -613,11 +565,7 @@ public:
         wheelMeasure << 1.0*wheelOdometry->twist.twist.linear.x, wheelOdometry->twist.twist.angular.z;
 
         // covariance
-        //wheelOdometryAdaptiveCovariance();
-        //E_wheel(0,0) = wheelG*wheelOdometry->twist.covariance[0];
-        //E_wheel(0,0) = gain_v * abs(vx_odom - ax_slip);
-        //E_wheel(1,1) = 1000*wheelOdometry->twist.covariance[35];
-        //E_wheel(1,1) = gain_omega * abs(omegaz_imu - omegaz_odom);
+        wheelOdometryAdaptiveCovariance();
 
         // time
         wheel_dt = wheelTimeCurrent - wheelTimeLast;
@@ -737,31 +685,6 @@ public:
 
         pubFilteredOdometry.publish(filteredOdometry);
     }
-    /*
-    void publish_indirect_lidar_measurement(VectorXd y, MatrixXd Pi){
-        indLiDAROdometry.header = headerL;
-        indLiDAROdometry.header.frame_id = "chassis_init";
-        indLiDAROdometry.child_frame_id = "ind_lidar_frame";
-
-        // twist
-        indLiDAROdometry.twist.twist.linear.x = y(0);
-        indLiDAROdometry.twist.twist.linear.y = y(1);
-        indLiDAROdometry.twist.twist.linear.z = y(2);
-        indLiDAROdometry.twist.twist.angular.x = y(3);
-        indLiDAROdometry.twist.twist.angular.y = y(4);
-        indLiDAROdometry.twist.twist.angular.z = y(5);
-
-        // twist convariance
-        int k = 0;
-        for (int i = 0; i < 6; i++){
-            for (int j = 0; j < 6; j++){
-                indLiDAROdometry.twist.covariance[k] = Pi(i,j);
-                k++;
-            }
-        } 
-
-        pubIndLiDARMeasurement.publish(indLiDAROdometry);
-    }*/
 
     //----------
     // runs
@@ -773,6 +696,11 @@ public:
         double t_last = ros::Time::now().toSec();
         double t_now;
         double dt_now;
+        bool pub_lidar, pub_wheel, pub_imu, pub_pred;
+        pub_lidar = false;
+        pub_wheel = false;
+        pub_imu = false;
+        pub_pred = false;
 
         //ROS_INFO("Running...");  
         while (ros::ok())
@@ -789,7 +717,8 @@ public:
                 
                 // publish state
                 if (filterFreq == "p"){
-                    publish_odom('p');
+                    // publish_odom('p');
+                    pub_pred =  true;
                 }
             }
 
@@ -800,7 +729,8 @@ public:
 
                 // publish state
                 if (filterFreq == "i"){
-                    publish_odom('i');
+                    // publish_odom('i');
+                    pub_imu =  true;
                 }
 
                 // control variable
@@ -813,7 +743,8 @@ public:
                 correction_wheel_stage(wheel_dt);
 
                 if (filterFreq == "w"){
-                    publish_odom('w');
+                    // publish_odom('w');
+                    pub_wheel = true;
                 }                
 
                 // control variable
@@ -828,24 +759,35 @@ public:
 
                 // publish state
                 if (filterFreq == "l"){
-                    publish_odom('l');
+                    // publish_odom('l');
+                    pub_lidar = true;
                 }
 
                 // controle variable
                 lidarNew =  false;
             }
+
+            // publishing
+            if (pub_pred){
+                publish_odom('p');
+                pub_pred = false;
+            }else if (pub_lidar){
+                publish_odom('l');
+                pub_lidar =  false;
+            }else if (pub_wheel){
+                publish_odom('w');
+                pub_wheel = false;
+            }else if (pub_imu){
+                publish_odom('i');
+                pub_imu = false;
+            }
+
             
             ros::spinOnce();
-            r.sleep();  
-            
-            //TESTE!
-            //col_index = (col_index + 1) % 50;
-            //ROS_INFO("Col index: %d", col_index);
+            r.sleep();        
         }
     }
-
 };
-
 
 //-----------------------------
 // Main 
@@ -862,11 +804,11 @@ int main(int argc, char** argv)
         nh_.param("/adaptive_filter/enableImu", enableImu, true);
         nh_.param("/adaptive_filter/enableWheel", enableWheel, true);
         nh_.param("/adaptive_filter/enableLidar", enableLidar, true);
-        nh_.param("/adaptive_filter/filterFreq", filterFreq, std::string("p"));
+        nh_.param("/adaptive_filter/filterFreq", filterFreq, std::string("l"));
 
         nh_.param("/adaptive_filter/lidarG", lidarG, float(75));
-        nh_.param("/adaptive_filter/wheelG", wheelG, float(0.05));
-        nh_.param("/adaptive_filter/imuG", imuG, float(0.1));
+        nh_.param("/adaptive_filter/wheelG", wheelG, float(0.5));
+        nh_.param("/adaptive_filter/imuG", imuG, float(100));
 
         nh_.param("/adaptive_filter/imuTopic", imuTopic, std::string("/imu/data"));
         nh_.param("/adaptive_filter/wheelTopic", wheelTopic, std::string("/wheel_odom"));
