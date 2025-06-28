@@ -1,12 +1,17 @@
-//=====================================================EKF-LOAM=========================================================
-//Project: EspeleoRobô2
-//Institution: Universidade Federal de Minas Gerais (UFMG) and Instituto Tecnológico Vale (ITV)
-//Description: This file is responsible for merging the wheel odometry with the IMU data and the LiDAR odometry.
-//Modification: 
+//=====================================================EKF-Fast-LIO2=====================================================================
+//Institutions: Universidade Federal de Minas Gerais (UFMG), Federal University of Ouro Preto (UFOP) and Instituto Tecnológico Vale (ITV)
+//Description: This file is responsible for merging the wheel odometry with the IMU data and the Fast-LIO2 odometry.
+//Milestones: 
 //             Date: November 27, 2021
-//             member: Gilmar Pereira da Cruz Júnior e Adriano Resende
-//             e-mail: gilmarpcruzjunior@gmail.com, adrianomcr18@gmail.com
-//=======================================================================================================================
+//             Description: Initial version of the code.
+//             Members: Gilmar Pereira da Cruz Júnior and Adriano Resende
+//             E-mails: gilmarpcruzjunior@gmail.com, adrianomcr18@gmail.com
+//
+//             Date: June 27, 2025
+//             Description: Include the wheel odometry adaptive covariance and the Fast-LIO2 odometry input.
+//             Members: Gilmar Pereira da Cruz Júnior and Gabriel Malaquias
+//             E-mails: gilmarpcruzjunior@gmail.com, gmdeoliveira@ymail.com
+//=======================================================================================================================================
 
 #include "settings_adaptive_filter.h"
 
@@ -25,9 +30,17 @@ float lidarG;
 float wheelG;
 float imuG;
 
+// adaptive wheel odometry covariance
+float gamma_vx;
+float gamma_omegaz;
+float delta_vx; 
+float delta_omegaz;
+
 std::string filterFreq;
 std::string imuTopic;
 std::string wheelTopic;
+std::string FastLIO2_OdometryTopic;
+std::string filterTopic;
 
 std::mutex mtx; 
 
@@ -107,10 +120,6 @@ private:
     bool lidarNew;
     bool velComp;
 
-    // adaptive wheel odometry covariance
-    double gamma_vx, gamma_omegaz;
-    double delta_vx, delta_omegaz;
-
 public:
     AdaptiveFilter():
         nh("~")
@@ -118,10 +127,10 @@ public:
         // Subscriber
         subImu = nh.subscribe<sensor_msgs::Imu>(imuTopic, 50, &AdaptiveFilter::imuHandler, this);
         subWheelOdometry = nh.subscribe<nav_msgs::Odometry>(wheelTopic, 5, &AdaptiveFilter::wheelOdometryHandler, this);
-        subLaserOdometry = nh.subscribe<nav_msgs::Odometry>("/Odometry", 5, &AdaptiveFilter::laserOdometryHandler, this);
+        subLaserOdometry = nh.subscribe<nav_msgs::Odometry>(FastLIO2_OdometryTopic, 5, &AdaptiveFilter::laserOdometryHandler, this);
         
         // Publisher
-        pubFilteredOdometry = nh.advertise<nav_msgs::Odometry> ("/filter_odom", 5);
+        pubFilteredOdometry = nh.advertise<nav_msgs::Odometry> (filterTopic, 5);
         
         // Initialization
         allocateMemory();
@@ -148,8 +157,6 @@ public:
 
         V.resize(N_STATES);
         PV.resize(N_STATES,N_STATES);
-
-        wheel_odom_adap_cov_inputs.resize(5,50);
     }
 
     void initialization(){
@@ -218,12 +225,6 @@ public:
 
         // Fixed prediction covariance
         E_pred.block(6,6,6,6) = 0.01*P.block(6,6,6,6);
-
-        //wheel odometry covariance adaptive positive constants
-        gamma_vx = 0.01 * 0.05; 
-        gamma_omegaz = 0.01; 
-        delta_vx = 0.0001; 
-        delta_omegaz = 0.00001; 
     }
 
     //-----------------
@@ -800,7 +801,7 @@ int main(int argc, char** argv)
     ros::NodeHandle nh_;
     try
     {
-        nh_.param("/ekf_loam/enableFilter", enableFilter, true);
+        nh_.param("/ekf_fast_lio2/enableFilter", enableFilter, true);
         nh_.param("/adaptive_filter/enableImu", enableImu, true);
         nh_.param("/adaptive_filter/enableWheel", enableWheel, true);
         nh_.param("/adaptive_filter/enableLidar", enableLidar, true);
@@ -810,8 +811,16 @@ int main(int argc, char** argv)
         nh_.param("/adaptive_filter/wheelG", wheelG, float(0.5));
         nh_.param("/adaptive_filter/imuG", imuG, float(100));
 
+        //wheel odometry covariance adaptive positive constants
+        nh_.param("/adaptive_filter/gamma_vx", gamma_vx, float(0.05));       
+        nh_.param("/adaptive_filter/gamma_omegaz", gamma_omegaz, float(0.01));
+        nh_.param("/adaptive_filter/delta_vx", delta_vx, float(0.0001));
+        nh_.param("/adaptive_filter/delta_omegaz", delta_omegaz, float(0.00001));
+
         nh_.param("/adaptive_filter/imuTopic", imuTopic, std::string("/imu/data"));
         nh_.param("/adaptive_filter/wheelTopic", wheelTopic, std::string("/wheel_odom"));
+        nh_.param("/adaptive_filter/FastLIO2_OdometryTopic", FastLIO2_OdometryTopic, std::string("/Odometry"));
+        nh_.param("/adaptive_filter/filterTopic", filterTopic, std::string("/filter_odom"));
     }
     catch (int e)
     {
@@ -822,7 +831,6 @@ int main(int argc, char** argv)
 
     if (enableFilter){
         ROS_INFO("\033[1;32m---->\033[0m Adaptive Filter Started.");
-        //ROS_INFO("Just testing..."); 
         // runs
         AF.run();
     }else{
