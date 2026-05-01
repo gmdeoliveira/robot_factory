@@ -1,5 +1,5 @@
 <launch>
-  <arg name="world_name" default="$(find robot_factory)/worlds/parking_lot.world"/>
+  <arg name="world_name" default="$(find robot_factory)/worlds/CASE_v2.world"/>
   
   <!-- Launch Gazebo and load the robot model -->
   <param name="robot_description" command="$(find xacro)/xacro '$(find robot_factory)/urdf/skid_steer_mid360.xacro'"/> 

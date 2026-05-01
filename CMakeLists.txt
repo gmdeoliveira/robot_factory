@@ -9,11 +9,8 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   nav_msgs
   sensor_msgs
-  ros_ign_gazebo
-  ros_ign_bridge
   gazebo_ros
   controller_manager
-  ackermann_steering_controller
 )
 
 find_package(gazebo REQUIRED)

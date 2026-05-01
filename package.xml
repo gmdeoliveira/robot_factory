@@ -34,9 +34,5 @@
 	<exec_depend>robot_state_publisher</exec_depend>
 	<exec_depend>rviz</exec_depend>
 	<exec_depend>xacro</exec_depend>
-  
-  <!-- Dependências do Ignition Gazebo -->
-  <exec_depend>ros_ign_gazebo</exec_depend>
-  <exec_depend>ros_ign_bridge</exec_depend>
 
 </package>
